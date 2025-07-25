@@ -1,16 +1,16 @@
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from .FastApiConfig import config
-from .yolo_handler import yolo_model
-from . import utils
+from FastApiConfig import config
+from yolo_handler import yolo_model
+import utils
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="YOLOv12 WebSocket Inference Server",
-    description="Server for object detection via WebSocket with class filtering."
+    description="Server for object detection via WebSocket with dynamic, per-request class and confidence filtering."
 )
 
 @app.on_event("startup")
@@ -28,6 +28,7 @@ async def read_root():
 async def websocket_endpoint(websocket: WebSocket):
     """
     Main WebSocket endpoint for receiving images and returning results.
+    Accepts dynamic settings (confidence_threshold, active_classes) per request.
     """
     await websocket.accept()
     logger.info(f"Client {websocket.client.host}:{websocket.client.port} connected.")
@@ -38,6 +39,12 @@ async def websocket_endpoint(websocket: WebSocket):
 
             image_b64 = data.get("image")
             provided_hash = data.get("hash")
+            
+            client_settings = data.get("settings", {}) 
+
+            conf_threshold = client_settings.get("confidence_threshold", config.yolo.confidence_threshold)
+            active_classes = client_settings.get("active_classes", config.yolo.active_classes)
+
 
             if not image_b64 or not provided_hash:
                 await websocket.send_json({"status": "error", "message": "Message must contain 'image' and 'hash' keys."})
@@ -53,13 +60,23 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.error("Failed to decode Base64 image.")
                 await websocket.send_json({"status": "error", "message": "Could not decode Base64 image."})
                 continue
+                
             try:
-                detections = yolo_model.detect(image)
+                detections = yolo_model.detect(
+                    image, 
+                    conf_threshold=conf_threshold, 
+                    active_classes=active_classes
+                )
+
                 await websocket.send_json({
                     "status": "success",
-                    "detections": detections
+                    "detections": detections,
+                    "settings_used": {
+                        "confidence_threshold": conf_threshold,
+                        "active_classes": active_classes
+                    }
                 })
-                logger.info(f"Successfully processed image, found {len(detections)} active objects.")
+                logger.info(f"Successfully processed image for client {websocket.client.host}. Found {len(detections)} objects.")
             except Exception as e:
                 logger.error(f"Error during inference: {e}")
                 await websocket.send_json({"status": "error", "message": f"Server error during detection: {e}"})

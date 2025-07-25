@@ -54,7 +54,7 @@ server:
 
 yolo:
   # Path to the .pt model weights file.
-  model_path: "models/yolov8n.pt"
+  model_path: "models/yolov11n.pt"
 
   # Confidence threshold. Detections below this value are ignored.
   confidence_threshold: 0.4

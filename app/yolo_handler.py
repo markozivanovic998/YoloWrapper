@@ -1,10 +1,10 @@
 # app/yolo_handler.py
 import torch
 from ultralytics import YOLO
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 import numpy as np
 
-from .FastApiConfig import config # Import configuration
+from FastApiConfig import config 
 
 class YoloHandler:
     """
@@ -13,12 +13,11 @@ class YoloHandler:
     """
     def __init__(self):
         """
-        The initializer loads the model and sets active classes.
+        The initializer loads the model and sets up the device.
+        Default settings are not stored here anymore for detection,
+        but loaded from config as fallback in main.py.
         """
         self.model_path = config.yolo.model_path
-        self.conf_threshold = config.yolo.confidence_threshold
-        self.active_classes_names = set(config.yolo.active_classes)
-
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print(f"YOLO model is using device: {self.device}")
 
@@ -27,22 +26,27 @@ class YoloHandler:
         
         self.model_classes = self.model.names
         print(f"Model successfully loaded with {len(self.model_classes)} classes.")
-        print(f"Active classes for detection: {list(self.active_classes_names)}")
+        print(f"Default active classes: {config.yolo.active_classes}")
+        print(f"Default confidence threshold: {config.yolo.confidence_threshold}")
 
-    def detect(self, image: np.ndarray) -> List[Dict[str, Any]]:
+
+    def detect(self, image: np.ndarray, conf_threshold: float, active_classes: List[str]) -> List[Dict[str, Any]]:
         """
-        Performs object detection on the given image.
+        Performs object detection on the given image using provided parameters.
 
         Args:
             image (np.ndarray): The input image as a NumPy array.
+            conf_threshold (float): The confidence threshold for this specific detection.
+            active_classes (List[str]): A list of class names to detect for this request.
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries, each representing a detection.
-                                  Each dictionary contains 'label', 'confidence', and 'box'.
         """
-        results = self.model(image, conf=self.conf_threshold, verbose=False)
+
+        results = self.model(image, conf=conf_threshold, verbose=False)
         
         processed_results = []
+        active_classes_set: Set[str] = set(active_classes)
         
         for result in results:
             boxes = result.boxes
@@ -50,7 +54,7 @@ class YoloHandler:
                 class_id = int(box.cls[0])
                 class_name = self.model_classes[class_id]
 
-                if class_name in self.active_classes_names:
+                if class_name in active_classes_set:
                     xyxy = box.xyxy[0].cpu().numpy() 
                     confidence = float(box.conf[0])
                     

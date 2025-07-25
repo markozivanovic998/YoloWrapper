@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  fastapi_app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models # Mount your models directory into the container
+      - ./config.yaml:/app/config.yaml # Mount your config file
+    environment:
+      # You can pass environment variables here if needed
+      # For example, if you want to override config values
+      # - YOLO_MODEL_PATH=/app/models/yolo11n.pt
+    command: ["uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"]
