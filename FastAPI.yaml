@@ -1,0 +1,13 @@
+server:
+  host: "127.0.0.1"
+  port: 8000
+
+yolo:
+  model_path: "models/yolo11n.pt"
+  confidence_threshold: 0.4
+  active_classes:
+    - "person"
+    - "car"
+    - "bus"
+    - "truck"
+    - "traffic light"
