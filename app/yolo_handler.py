@@ -4,33 +4,42 @@ from ultralytics import YOLO
 from typing import List, Dict, Any
 import numpy as np
 
-from .FastApiConfig import config # Uvozimo konfiguraciju
+from .FastApiConfig import config # Import configuration
 
 class YoloHandler:
     """
-    Klasa koja upravlja YOLO modelom, uključujući učitavanje,
-    konfiguraciju i izvršavanje detekcije.
+    Class that manages the YOLO model, including loading,
+    configuration, and performing detection.
     """
     def __init__(self):
         """
-        Inicijalizator učitava model i postavlja aktivne klase.
+        The initializer loads the model and sets active classes.
         """
         self.model_path = config.yolo.model_path
         self.conf_threshold = config.yolo.confidence_threshold
         self.active_classes_names = set(config.yolo.active_classes)
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print(f"YOLO model koristi uređaj: {self.device}")
+        print(f"YOLO model is using device: {self.device}")
 
         self.model = YOLO(self.model_path)
         self.model.to(self.device)
         
         self.model_classes = self.model.names
-        print(f"Model uspešno učitan sa {len(self.model_classes)} klasa.")
-        print(f"Aktivne klase za detekciju: {list(self.active_classes_names)}")
+        print(f"Model successfully loaded with {len(self.model_classes)} classes.")
+        print(f"Active classes for detection: {list(self.active_classes_names)}")
 
     def detect(self, image: np.ndarray) -> List[Dict[str, Any]]:
+        """
+        Performs object detection on the given image.
 
+        Args:
+            image (np.ndarray): The input image as a NumPy array.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each representing a detection.
+                                  Each dictionary contains 'label', 'confidence', and 'box'.
+        """
         results = self.model(image, conf=self.conf_threshold, verbose=False)
         
         processed_results = []
